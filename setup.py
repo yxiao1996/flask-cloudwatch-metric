@@ -8,7 +8,7 @@ except:
 
 setup(
     name='flask-cloudwatch-metric',
-    version='0.0.2',
+    version='0.0.3',
     url='https://github.com/yxiao1996/flask-cloudwatch-metric',
     license='MIT',
     author='Yu Xiao',
