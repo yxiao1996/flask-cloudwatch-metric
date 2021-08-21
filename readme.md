@@ -1,23 +1,23 @@
-##flask-cloudwatch-metric
+## flask-cloudwatch-metric
 
 A Flask extension to provide easy and efficient integration with CloudWatch to publish application metrics.
 
 ### Sample usage
+```
+app = Flask(__name__)
+metrics_reporter = CloudWatchMetricsReporter(app)
 
-    app = Flask(__name__)
-    metrics_reporter = CloudWatchMetricsReporter(app)
-
-    @app.route('/')
-    def main():
-        response = # ... Your application logic
-        metrics_reporter.add_metric(
-            metric_name="RequestCount",
-            value=1,
-            unit="Count",
-            dimensions=[]
-        )
-        return response, 200
-
+@app.route('/')
+def main():
+    response = # ... Your application logic
+    metrics_reporter.add_metric(
+        metric_name="RequestCount",
+        value=1,
+        unit="Count",
+        dimensions=[]
+    )
+    return response, 200
+```
 
 ### How it works?
 
