@@ -1,6 +1,6 @@
 import boto3
 from typing import Dict, List
-from flask import Flask
+from flask import Flask, g
 
 
 class Metric(object):
@@ -23,6 +23,8 @@ class CloudWatchMetricsReporter(object):
     When user calls the addMetrics API, the metrics reporter will store the metric in an internal array,
     After the application logic is finished, the reporter wil publish the metrics in batches of 20 metrics to CloudWatch.
     This behavior is designed to reduce the amount of time to publish metrics for requests.
+    The flask g context is used to store per-request metric data as recommended in:
+    https://flask.palletsprojects.com/en/2.0.x/api/#flask.g
 
     Sample usage:
 
@@ -43,11 +45,13 @@ class CloudWatchMetricsReporter(object):
     def __init__(self, app: Flask, namespace: str):
         self.cloudwatch_client = boto3.client('cloudwatch')
         self.namespace = namespace
-        self.metric_buffer = []
         self._attach_interceptor_to_app(app)
 
     def add_metric(self, metric_name: str, value: float, unit: str, dimensions: List[Dict[str, str]]):
-        self.metric_buffer.append(Metric(
+        if 'cloudwatch_metrics_buffer' not in g:
+            return
+
+        g.cloudwatch_metrics_buffer.append(Metric(
             metric_name=metric_name,
             value=value,
             unit=unit,
@@ -55,10 +59,17 @@ class CloudWatchMetricsReporter(object):
         ))
 
     def _attach_interceptor_to_app(self, app: Flask):
+        def before_request():
+            # create an empty array to store metric objects in global context
+            g.cloudwatch_metrics_buffer = []
+
         def teardown_request(exception=None):
-            while len(self.metric_buffer) > 0:
+            if 'cloudwatch_metrics_buffer' not in g:
+                return
+            metrics_buffer = g.cloudwatch_metrics_buffer
+            while len(metrics_buffer) > 0:
                 # Get a batch of metrics with maximum size 20
-                batch_metrics = self._get_batch_metrics()
+                batch_metrics = self._get_batch_metrics(metrics_buffer)
 
                 # Translate metric model and publish to CloudWatch
                 metric_data = [self._translate_metric_model(metric) for metric in batch_metrics]
@@ -67,18 +78,19 @@ class CloudWatchMetricsReporter(object):
                     MetricData=metric_data
                 )
 
+        app.before_request(before_request)
         app.teardown_request(teardown_request)
 
-    def _get_batch_metrics(self):
+    def _get_batch_metrics(self, metrics_buffer):
         batch_metrics = []
-        if len(self.metric_buffer) <= 20:
-            while len(self.metric_buffer) > 0:
-                batch_metrics.append(self.metric_buffer.pop())
+        if len(metrics_buffer) <= 20:
+            while len(metrics_buffer) > 0:
+                batch_metrics.append(metrics_buffer.pop())
         else:
             # Create a batch of metrics with size 20, due to the limitation of CloudWatch client:
             # https://flask.palletsprojects.com/en/2.0.x/api/#flask.Flask.after_request
             for i in range(20):
-                batch_metrics.append(self.metric_buffer.pop())
+                batch_metrics.append(metrics_buffer.pop())
         return batch_metrics
 
     @staticmethod
