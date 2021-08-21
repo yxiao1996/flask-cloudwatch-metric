@@ -3,3 +3,5 @@ include
 lib
 pyvenv.cfg
 */__pycache__
+flask_cloudwatch_metric.egg-info
+dist
