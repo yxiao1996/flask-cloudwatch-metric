@@ -1,24 +1,10 @@
 from setuptools import setup
 
-long_description = """flask-cloudwatch-metric
-A Flask extension to provide easy integration with CloudWatch to publish metrics.
-
-Sample usage:
-
-        app = Flask(__name__)
-        metrics_reporter = CloudWatchMetricsReporter(app)
-
-        @app.route('/')
-        def main():
-            response = # ... Your application logic
-            metrics_reporter.add_metric(
-                metric_name="RequestCount",
-                value=1,
-                unit="Count",
-                dimensions=[]
-            )
-            return response, 200
-"""
+try:
+    with open("readme.md", 'r') as f:
+        long_description = f.read()
+except:
+    long_description = ''
 
 setup(
     name='flask-cloudwatch-metric',
