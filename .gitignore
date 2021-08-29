@@ -2,6 +2,6 @@ bin
 include
 lib
 pyvenv.cfg
-*/__pycache__
+__pycache__
 flask_cloudwatch_metric.egg-info
 dist

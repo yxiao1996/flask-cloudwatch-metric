@@ -42,12 +42,26 @@ class CloudWatchMetricsReporter(object):
             )
             return response, 200
     """
-    def __init__(self, app: Flask, namespace: str):
-        self.cloudwatch_client = boto3.client('cloudwatch')
+    def __init__(self,
+                 app: Flask,
+                 namespace: str,
+                 aws_access_key_id: str = None,
+                 aws_secret_access_key: str = None,
+                 aws_region_name: str = None):
+        if aws_access_key_id and aws_secret_access_key and aws_region_name:
+            self.cloudwatch_client = boto3.client(
+                'cloudwatch',
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+                region_name=aws_region_name
+            )
+        else:
+            self.cloudwatch_client = boto3.client('cloudwatch')
         self.namespace = namespace
         self._attach_interceptor_to_app(app)
 
-    def add_metric(self, metric_name: str, value: float, unit: str, dimensions: List[Dict[str, str]]):
+    @staticmethod
+    def add_metric(metric_name: str, value: float, unit: str, dimensions: List[Dict[str, str]]):
         if 'cloudwatch_metrics_buffer' not in g:
             return
 
