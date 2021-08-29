@@ -8,7 +8,7 @@ except:
 
 setup(
     name='flask-cloudwatch-metric',
-    version='0.1.2',
+    version='0.1.4',
     url='https://github.com/yxiao1996/flask-cloudwatch-metric',
     license='MIT',
     author='Yu Xiao',
@@ -16,7 +16,7 @@ setup(
     description='A Flask extension to provide easy integration with CloudWatch to publish metrics',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    packages=['flask_cloudwatch_metric'],
+    packages=['flask_cloudwatch_metric', 'flask_cloudwatch_metric.decorator'],
     zip_safe=False,
     include_package_data=True,
     platforms='any',
