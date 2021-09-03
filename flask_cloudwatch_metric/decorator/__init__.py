@@ -61,11 +61,10 @@ class _RequestCountDecorator(_MetricsDecoratorBase):
             unit=self.COUNT,
             value=1
         )
-        print(status_code)
         return response
 
 
-class _FaultAndErrorDecorator(_MetricsDecoratorBase):
+class _FaultFailureErrorDecorator(_MetricsDecoratorBase):
     """
     A metrics decorator to emit user error and system fault metrics based on status code:
     * 400 - 499: User error
@@ -76,7 +75,13 @@ class _FaultAndErrorDecorator(_MetricsDecoratorBase):
         self.resource_name = resource_name
 
     def __call__(self, *args, **kwargs):
-        response = self.function(*args, **kwargs)
+        try:
+            response = self.function(*args, **kwargs)
+        except Exception as e:
+            # wrap all un-modeled exception as failure
+            self._emit_metric_by_name("Failure")
+            raise e
+
         status_code = self._get_status_code_from_response(response)
         if 400 <= status_code < 600:
             if status_code < 500:
@@ -85,14 +90,16 @@ class _FaultAndErrorDecorator(_MetricsDecoratorBase):
             else:
                 # 500 - 599: System, fault
                 metric_name = "Fault"
-            print(metric_name)
-            self.metrics_reporter.add_metric(
-                metric_name=metric_name,
-                dimensions=[self._get_metric_dimension("ResourceName", self.resource_name)],
-                unit=self.COUNT,
-                value=1
-            )
+            self._emit_metric_by_name(metric_name)
         return response
+
+    def _emit_metric_by_name(self, metric_name):
+        self.metrics_reporter.add_metric(
+            metric_name=metric_name,
+            dimensions=[self._get_metric_dimension("ResourceName", self.resource_name)],
+            unit=self.COUNT,
+            value=1
+        )
 
 
 def request_count(metrics_reporter: CloudWatchMetricsReporter, resource_name: str):
@@ -105,11 +112,11 @@ def request_count(metrics_reporter: CloudWatchMetricsReporter, resource_name: st
     return _request_count
 
 
-def fault_and_error(metrics_reporter: CloudWatchMetricsReporter, resource_name: str):
-    def _fault_and_error(function):
-        return _FaultAndErrorDecorator(
+def fault_failure_error(metrics_reporter: CloudWatchMetricsReporter, resource_name: str):
+    def _fault_failure_error(function):
+        return _FaultFailureErrorDecorator(
             function=function,
             metrics_reporter=metrics_reporter,
             resource_name=resource_name
         )
-    return _fault_and_error
+    return _fault_failure_error
