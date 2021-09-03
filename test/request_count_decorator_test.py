@@ -10,13 +10,7 @@ metrics_reporter = CloudWatchMetricsReporter(app, 'FlaskApplication')
 @request_count(metrics_reporter=metrics_reporter, resource_name='IndexPage')
 def main():
     response = "Hello World!"
-    metrics_reporter.add_metric(
-        metric_name="RequestCount",
-        value=1,
-        unit="Count",
-        dimensions=[]
-    )
-    return response, 200
+    return response, 400
 
 
 if __name__ == '__main__':
