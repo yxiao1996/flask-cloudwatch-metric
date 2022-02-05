@@ -45,10 +45,10 @@ class CloudWatchMetricsReporter(object):
     def __init__(self,
                  app: Flask,
                  namespace: str,
+                 aws_region_name: str,
                  aws_access_key_id: str = None,
-                 aws_secret_access_key: str = None,
-                 aws_region_name: str = None):
-        if aws_access_key_id and aws_secret_access_key and aws_region_name:
+                 aws_secret_access_key: str = None):
+        if aws_access_key_id and aws_secret_access_key:
             self.cloudwatch_client = boto3.client(
                 'cloudwatch',
                 aws_access_key_id=aws_access_key_id,
@@ -56,7 +56,7 @@ class CloudWatchMetricsReporter(object):
                 region_name=aws_region_name
             )
         else:
-            self.cloudwatch_client = boto3.client('cloudwatch')
+            self.cloudwatch_client = boto3.client('cloudwatch', region_name=aws_region_name)
         self.namespace = namespace
         self._attach_interceptor_to_app(app)
 
