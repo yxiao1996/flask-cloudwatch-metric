@@ -1,6 +1,8 @@
 import boto3
 from typing import Dict, List
 from flask import Flask, g
+import logging
+import traceback
 
 
 class Metric(object):
@@ -25,40 +27,33 @@ class CloudWatchMetricsReporter(object):
     This behavior is designed to reduce the amount of time to publish metrics for requests.
     The flask g context is used to store per-request metric data as recommended in:
     https://flask.palletsprojects.com/en/2.0.x/api/#flask.g
-
-    Sample usage:
-
-        app = Flask(__name__)
-        metrics_reporter = CloudWatchMetricsReporter(app)
-
-        @app.route('/')
-        def main():
-            response = # ... Your application logic
-            metrics_reporter.add_metric(
-                metric_name="RequestCount",
-                value=1,
-                unit="Count",
-                dimensions=[]
-            )
-            return response, 200
     """
     def __init__(self,
                  app: Flask,
                  namespace: str,
-                 aws_region_name: str,
-                 aws_access_key_id: str = None,
-                 aws_secret_access_key: str = None):
+                 cloudwatch_client):
+        self.cloudwatch_client = cloudwatch_client
+        self.namespace = namespace
+        self._attach_interceptor_to_app(app)
+
+    @staticmethod
+    def new_reporter(
+            app: Flask,
+            namespace: str,
+            aws_region_name: str,
+            aws_access_key_id: str = None,
+            aws_secret_access_key: str = None):
         if aws_access_key_id and aws_secret_access_key:
-            self.cloudwatch_client = boto3.client(
+            cloudwatch_client = boto3.client(
                 'cloudwatch',
                 aws_access_key_id=aws_access_key_id,
                 aws_secret_access_key=aws_secret_access_key,
                 region_name=aws_region_name
             )
         else:
-            self.cloudwatch_client = boto3.client('cloudwatch', region_name=aws_region_name)
-        self.namespace = namespace
-        self._attach_interceptor_to_app(app)
+            cloudwatch_client = boto3.client('cloudwatch', region_name=aws_region_name)
+
+        return CloudWatchMetricsReporter(app, namespace, cloudwatch_client)
 
     @staticmethod
     def add_metric(metric_name: str, value: float, unit: str, dimensions: List[Dict[str, str]]):
@@ -79,6 +74,7 @@ class CloudWatchMetricsReporter(object):
 
         def teardown_request(exception=None):
             if 'cloudwatch_metrics_buffer' not in g:
+                logging.warning("Skip publishing CloudWatch metrics, no metrics buffer found in global context")
                 return
             metrics_buffer = g.cloudwatch_metrics_buffer
             while len(metrics_buffer) > 0:
@@ -87,10 +83,13 @@ class CloudWatchMetricsReporter(object):
 
                 # Translate metric model and publish to CloudWatch
                 metric_data = [self._translate_metric_model(metric) for metric in batch_metrics]
-                self.cloudwatch_client.put_metric_data(
-                    Namespace=self.namespace,
-                    MetricData=metric_data
-                )
+                try:
+                    self.cloudwatch_client.put_metric_data(
+                        Namespace=self.namespace,
+                        MetricData=metric_data
+                    )
+                except Exception as e:
+                    logging.error("Fail to publish metrics to CloudWatch. " + traceback.format_exc())
 
         app.before_request(before_request)
         app.teardown_request(teardown_request)
