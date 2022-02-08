@@ -5,6 +5,28 @@ import logging
 import traceback
 
 
+def initialize_metrics(
+        app: Flask,
+        namespace: str,
+        aws_region_name: str,
+        aws_access_key_id: str = None,
+        aws_secret_access_key: str = None):
+    # Create metrics reporter in Flask global context
+    g.cloudwatch_metrics_reporter = CloudWatchMetricsReporter.new_reporter(
+        app,
+        namespace,
+        aws_region_name,
+        aws_access_key_id,
+        aws_secret_access_key)
+
+
+def get_metrics():
+    if 'cloudwatch_metrics_reporter' not in g:
+        raise Exception("Can't find CloudWatch metrics reporter in application context. " +
+                        "Make sure you run 'initialize_metrics' function before trying to use the metrics")
+    return g.cloudwatch_metrics_reporter
+
+
 class Metric(object):
     """
     An internal model class for metrics.

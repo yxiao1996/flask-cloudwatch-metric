@@ -1,11 +1,12 @@
 import threading
 import requests
 from werkzeug.serving import make_server
+from flask import Flask
 
 
 class ServerThread(threading.Thread):
 
-    def __init__(self, app):
+    def __init__(self, app: Flask):
         threading.Thread.__init__(self)
         self.server = make_server('127.0.0.1', 5000, app)
         self.ctx = app.app_context()
